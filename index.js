@@ -48,7 +48,7 @@ client.on("messageCreate", async (message) => {
 
         const embed = new EmbedBuilder()
           .setColor(0x2b2d31)
-          .setDescription("## Ia de aici link, tati");
+          .setDescription("👑 **Ia de aici link, tati** 👑")
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
