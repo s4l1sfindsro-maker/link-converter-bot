@@ -65,7 +65,7 @@ client.on("messageCreate", async (message) => {
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setLabel("BBDBuy")
-            .setEmoji("🛒")
+            .setEmoji("<:bbdbuy:1506622312454033589>")
             .setStyle(ButtonStyle.Link)
             .setURL(bbdbuyUrl),
 
