@@ -50,6 +50,8 @@ function isShortMarketplaceHost(host) {
 
 function isAgentHost(host) {
   const agents = [
+    "acbuy.com",
+    "bbdbuyeu.com",
     "cnfans.com",
     "hipobuy.com",
     "kakobuy.com",
@@ -78,7 +80,6 @@ function normalizeMarketplaceUrl(urlStr) {
   const host = normalizeHost(url.hostname);
   const full = safeDecode(urlStr);
 
-  // Weidian / YouShop
   if (host.includes("weidian.com") || host.includes("youshop10.com")) {
     const itemId =
       url.searchParams.get("itemID") ||
@@ -93,12 +94,11 @@ function normalizeMarketplaceUrl(urlStr) {
     return {
       marketplace: "weidian",
       itemId,
-      source: "WD",
       originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
     };
   }
 
-  // Taobao / Tmall
   if (host.includes("taobao.com") || host.includes("tmall.com")) {
     const itemId =
       url.searchParams.get("id") ||
@@ -106,24 +106,14 @@ function normalizeMarketplaceUrl(urlStr) {
 
     if (!itemId) return null;
 
-    if (host.includes("tmall.com")) {
-      return {
-        marketplace: "tmall",
-        itemId,
-        source: "TB",
-        originalUrl: `https://detail.tmall.com/item.htm?id=${itemId}`,
-      };
-    }
-
     return {
       marketplace: "taobao",
       itemId,
-      source: "TB",
       originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
     };
   }
 
-  // 1688
   if (host.includes("1688.com")) {
     const itemId =
       full.match(/offer\/(\d+)\.html/i)?.[1] ||
@@ -135,35 +125,25 @@ function normalizeMarketplaceUrl(urlStr) {
     return {
       marketplace: "1688",
       itemId,
-      source: "AL",
       originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
+      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
     };
   }
 
   return null;
 }
 
-function doubleEncodeUrl(url) {
-  return encodeURIComponent(encodeURIComponent(url));
-}
-
-function buildAcbuyProductUrl({ originalUrl, itemId, source }) {
-  return `https://www.acbuy.com/product?url=${doubleEncodeUrl(originalUrl)}&id=${itemId}&source=${source}`;
+function buildBbdbuyUrl(platform, itemId) {
+  return `https://www.bbdbuyeu.com/goods/${platform}/${itemId}`;
 }
 
 function resolveRedirect(url, maxRedirects = 6) {
   return new Promise((resolve) => {
     const visit = (currentUrl, count) => {
-      if (count > maxRedirects) {
-        resolve(currentUrl);
-        return;
-      }
+      if (count > maxRedirects) return resolve(currentUrl);
 
       const parsed = tryParseUrl(currentUrl);
-      if (!parsed) {
-        resolve(currentUrl);
-        return;
-      }
+      if (!parsed) return resolve(currentUrl);
 
       const lib = parsed.protocol === "https:" ? https : http;
 
@@ -171,9 +151,7 @@ function resolveRedirect(url, maxRedirects = 6) {
         currentUrl,
         {
           method: "GET",
-          headers: {
-            "User-Agent": "Mozilla/5.0",
-          },
+          headers: { "User-Agent": "Mozilla/5.0" },
         },
         (res) => {
           const location = res.headers.location;
@@ -198,36 +176,85 @@ function resolveRedirect(url, maxRedirects = 6) {
   });
 }
 
-function extractMarketplaceFromPossibleUrl(value) {
-  if (!value) return null;
+function extractFromAcbuy(urlStr) {
+  const url = tryParseUrl(urlStr);
+  if (!url) return null;
 
-  const decoded = safeDecode(value, 8);
-  const parsed = tryParseUrl(decoded);
-  if (!parsed) return null;
+  const host = normalizeHost(url.hostname);
+  if (!host.includes("acbuy.com")) return null;
 
-  const host = normalizeHost(parsed.hostname);
+  const decoded = safeDecode(urlStr, 8);
 
-  if (isMarketplaceHost(host)) {
-    return normalizeMarketplaceUrl(decoded);
+  const originalUrlParam = url.searchParams.get("url");
+  if (originalUrlParam) {
+    const original = safeDecode(originalUrlParam, 8);
+    const info = normalizeMarketplaceUrl(original);
+    if (info) return info;
+  }
+
+  const itemId =
+    url.searchParams.get("id") ||
+    decoded.match(/[?&]id=(\d+)/i)?.[1];
+
+  const source =
+    url.searchParams.get("source") ||
+    decoded.match(/[?&]source=([A-Za-z0-9]+)/i)?.[1];
+
+  if (!itemId || !source) return null;
+
+  const src = source.toUpperCase();
+
+  if (src === "AL" || src === "ALI" || src === "1688") {
+    return {
+      marketplace: "1688",
+      itemId,
+      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
+      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
+    };
+  }
+
+  if (src === "WD" || src === "WEIDIAN") {
+    return {
+      marketplace: "weidian",
+      itemId,
+      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
+    };
+  }
+
+  if (src === "TB" || src === "TAOBAO" || src === "TMALL") {
+    return {
+      marketplace: "taobao",
+      itemId,
+      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
+    };
   }
 
   return null;
 }
 
 function extractNestedMarketplaceUrl(agentUrlStr) {
+  const acbuyInfo = extractFromAcbuy(agentUrlStr);
+  if (acbuyInfo) return acbuyInfo;
+
   const decoded = safeDecode(agentUrlStr, 8);
 
-  // 1) URLs embebidas directas
   const directMatches = decoded.match(/https?:\/\/[^\s<>()]+/gi) || [];
   for (const candidate of directMatches) {
-    const info = extractMarketplaceFromPossibleUrl(candidate);
-    if (info) return info;
+    const parsed = tryParseUrl(candidate);
+    if (!parsed) continue;
+
+    const host = normalizeHost(parsed.hostname);
+    if (isMarketplaceHost(host)) {
+      const info = normalizeMarketplaceUrl(candidate);
+      if (info) return info;
+    }
   }
 
   const agentUrl = tryParseUrl(agentUrlStr);
   if (!agentUrl) return null;
 
-  // 2) Parámetros frecuentes
   const possibleParams = [
     "url",
     "link",
@@ -245,24 +272,24 @@ function extractNestedMarketplaceUrl(agentUrlStr) {
 
   for (const key of possibleParams) {
     const value = agentUrl.searchParams.get(key);
-    const info = extractMarketplaceFromPossibleUrl(value);
+    if (!value) continue;
+
+    const decodedValue = safeDecode(value, 8);
+    const info = normalizeMarketplaceUrl(decodedValue);
     if (info) return info;
   }
 
-  // 3) Algunos agentes guardan platform + id
   const platform =
     agentUrl.searchParams.get("platform") ||
     agentUrl.searchParams.get("shop_type") ||
     agentUrl.searchParams.get("type") ||
     "";
 
-  const decodedAll = safeDecode(agentUrlStr, 8);
-
   const itemId =
     agentUrl.searchParams.get("id") ||
     agentUrl.searchParams.get("itemID") ||
     agentUrl.searchParams.get("itemId") ||
-    decodedAll.match(/[?&](?:id|itemID|itemId)=(\d+)/i)?.[1];
+    decoded.match(/[?&](?:id|itemID|itemId)=(\d+)/i)?.[1];
 
   if (!itemId) return null;
 
@@ -272,26 +299,17 @@ function extractNestedMarketplaceUrl(agentUrlStr) {
     return {
       marketplace: "weidian",
       itemId,
-      source: "WD",
       originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
     };
   }
 
-  if (p.includes("taobao")) {
+  if (p.includes("taobao") || p.includes("tmall")) {
     return {
       marketplace: "taobao",
       itemId,
-      source: "TB",
       originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
-    };
-  }
-
-  if (p.includes("tmall")) {
-    return {
-      marketplace: "tmall",
-      itemId,
-      source: "TB",
-      originalUrl: `https://detail.tmall.com/item.htm?id=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
     };
   }
 
@@ -299,22 +317,21 @@ function extractNestedMarketplaceUrl(agentUrlStr) {
     return {
       marketplace: "1688",
       itemId,
-      source: "AL",
       originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
+      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
     };
   }
 
   return null;
 }
 
-async function convertAnyLinkToAcbuy(inputUrl) {
+async function convertAnyLinkToBbdbuy(inputUrl) {
   const parsed = tryParseUrl(inputUrl);
   if (!parsed) return null;
 
   let workingUrl = inputUrl;
   let host = normalizeHost(parsed.hostname);
 
-  // Shortlinks
   if (isShortMarketplaceHost(host)) {
     workingUrl = await resolveRedirect(inputUrl);
     const redirected = tryParseUrl(workingUrl);
@@ -322,26 +339,12 @@ async function convertAnyLinkToAcbuy(inputUrl) {
     host = normalizeHost(redirected.hostname);
   }
 
-  // Marketplace directo
   if (isMarketplaceHost(host)) {
-    const info = normalizeMarketplaceUrl(workingUrl);
-    if (!info) return null;
-
-    return {
-      ...info,
-      acbuyUrl: buildAcbuyProductUrl(info),
-    };
+    return normalizeMarketplaceUrl(workingUrl);
   }
 
-  // Agente
   if (isAgentHost(host)) {
-    const info = extractNestedMarketplaceUrl(workingUrl);
-    if (!info) return null;
-
-    return {
-      ...info,
-      acbuyUrl: buildAcbuyProductUrl(info),
-    };
+    return extractNestedMarketplaceUrl(workingUrl);
   }
 
   return null;
@@ -349,5 +352,5 @@ async function convertAnyLinkToAcbuy(inputUrl) {
 
 module.exports = {
   extractUrlsFromText,
-  convertAnyLinkToAcbuy,
+  convertAnyLinkToBbdbuy,
 };
