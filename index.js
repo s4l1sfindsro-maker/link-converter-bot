@@ -9,7 +9,7 @@ const {
   ButtonStyle,
 } = require("discord.js");
 
-const { convertAnyLinkToAcbuy, extractUrlsFromText } = require("./parser");
+const { convertAnyLinkToBbdbuy, extractUrlsFromText } = require("./parser");
 
 const client = new Client({
   intents: [
@@ -19,7 +19,6 @@ const client = new Client({
   ],
 });
 
-// 🔥 UUFinds builder correcto
 function buildUuFindsSearchUrl(preferredUrl, fallbackUrl) {
   const keyword = preferredUrl || fallbackUrl;
   return `https://www.uufinds.com/imageSearchList?keyword=${encodeURIComponent(keyword)}`;
@@ -39,23 +38,23 @@ client.on("messageCreate", async (message) => {
 
     for (const originalInputUrl of urls) {
       try {
-        const result = await convertAnyLinkToAcbuy(originalInputUrl);
+        const result = await convertAnyLinkToBbdbuy(originalInputUrl);
         if (!result) continue;
 
-        const acbuyUrl = result.acbuyUrl;
+        const bbdbuyUrl = result.bbdbuyUrl;
         const rawUrl = result.originalUrl || originalInputUrl;
         const qcFinderUrl = buildUuFindsSearchUrl(rawUrl, originalInputUrl);
 
         const embed = new EmbedBuilder()
           .setColor(0x2b2d31)
-          .setDescription("👑 **Ia de aici link, tati** 👑")
+          .setDescription("## 👑 Ia de aici link, tati");
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel("ACBuy")
-            .setEmoji({ name: "acbuy", id: "1494611125160116355" })
+            .setLabel("BBDBuy")
+            .setEmoji("🛒")
             .setStyle(ButtonStyle.Link)
-            .setURL(acbuyUrl),
+            .setURL(bbdbuyUrl),
 
           new ButtonBuilder()
             .setLabel("Original Link")
