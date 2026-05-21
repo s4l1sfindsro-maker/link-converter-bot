@@ -51,7 +51,7 @@ client.on("messageCreate", async (message) => {
                         .setLabel("BBDBuy")
                         .setStyle(ButtonStyle.Link)
                         .setURL(result.bbdbuyUrl)
-                        .setEmoji("<:bbdbuy:1506622312454033589>")
+                        .setEmoji("🛒")
 
                     new ButtonBuilder()
                         .setLabel("Original Link")
