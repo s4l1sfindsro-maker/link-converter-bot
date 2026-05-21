@@ -48,10 +48,10 @@ client.on("messageCreate", async (message) => {
                 const row = new ActionRowBuilder().addComponents(
 
                     new ButtonBuilder()
-                        .setLabel("BBDBuy")
-                        .setStyle(ButtonStyle.Link)
-                        .setURL(result.bbdbuyUrl)
-                        .setEmoji("1506622312454033589"),
+                    .setLabel("BBDBuy")
+                    .setStyle(ButtonStyle.Link)
+                    .setURL(result.bbdbuyUrl)
+                    .setEmoji({ name: "bbdbuy", id: "1506622312454033589" }),
 
                     new ButtonBuilder()
                         .setLabel("Original Link")
