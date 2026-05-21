@@ -11,6 +11,7 @@ function buildBbdbuyUrl(platform, itemId) {
 
 function safeDecode(str, rounds = 10) {
   let current = str;
+
   for (let i = 0; i < rounds; i++) {
     try {
       const decoded = decodeURIComponent(current);
@@ -20,6 +21,7 @@ function safeDecode(str, rounds = 10) {
       break;
     }
   }
+
   return current;
 }
 
@@ -54,7 +56,6 @@ function isAgentHost(host) {
     "litbuy.shop",
     "cnfans.com",
     "oopbuy.com",
-    "hipobuy.com",
     "lovegobuy.com",
     "superbuy.com",
     "itaobuy.com",
@@ -63,10 +64,10 @@ function isAgentHost(host) {
     "allchinabuy.com",
     "joyabuy.com",
     "orientdig.com",
-    "ezbuycn.com"
+    "ezbuycn.com",
   ];
 
-  return agents.some(agent => host === agent || host.endsWith(`.${agent}`));
+  return agents.some((agent) => host === agent || host.endsWith(`.${agent}`));
 }
 
 function isShortLink(host) {
@@ -75,6 +76,39 @@ function isShortLink(host) {
     host === "m.tb.cn" ||
     host.includes("litbuy.shop")
   );
+}
+
+function buildInfo(platform, itemId) {
+  if (!itemId) return null;
+
+  if (platform === "1688") {
+    return {
+      marketplace: "1688",
+      itemId,
+      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
+      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
+    };
+  }
+
+  if (platform === "weidian") {
+    return {
+      marketplace: "weidian",
+      itemId,
+      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
+    };
+  }
+
+  if (platform === "taobao") {
+    return {
+      marketplace: "taobao",
+      itemId,
+      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
+    };
+  }
+
+  return null;
 }
 
 function normalizeMarketplaceUrl(urlStr) {
@@ -93,14 +127,7 @@ function normalizeMarketplaceUrl(urlStr) {
       full.match(/itemId=(\d+)/i)?.[1] ||
       full.match(/[?&]id=(\d+)/i)?.[1];
 
-    if (!itemId) return null;
-
-    return {
-      marketplace: "weidian",
-      itemId,
-      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
-    };
+    return buildInfo("weidian", itemId);
   }
 
   if (host.includes("taobao.com") || host.includes("tmall.com")) {
@@ -108,14 +135,7 @@ function normalizeMarketplaceUrl(urlStr) {
       url.searchParams.get("id") ||
       full.match(/[?&]id=(\d+)/i)?.[1];
 
-    if (!itemId) return null;
-
-    return {
-      marketplace: "taobao",
-      itemId,
-      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
-    };
+    return buildInfo("taobao", itemId);
   }
 
   if (host.includes("1688.com")) {
@@ -124,14 +144,7 @@ function normalizeMarketplaceUrl(urlStr) {
       url.searchParams.get("id") ||
       full.match(/[?&]id=(\d+)/i)?.[1];
 
-    if (!itemId) return null;
-
-    return {
-      marketplace: "1688",
-      itemId,
-      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
-      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
-    };
+    return buildInfo("1688", itemId);
   }
 
   return null;
@@ -152,33 +165,40 @@ function extractFromAcbuy(urlStr) {
   const src = source.toUpperCase();
 
   if (src === "AL" || src === "ALI" || src === "1688") {
-    return {
-      marketplace: "1688",
-      itemId,
-      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
-      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
-    };
+    return buildInfo("1688", itemId);
   }
 
   if (src === "WD" || src === "WEIDIAN") {
-    return {
-      marketplace: "weidian",
-      itemId,
-      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
-    };
+    return buildInfo("weidian", itemId);
   }
 
   if (src === "TB" || src === "TAOBAO" || src === "TMALL") {
-    return {
-      marketplace: "taobao",
-      itemId,
-      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
-    };
+    return buildInfo("taobao", itemId);
   }
 
   return null;
+}
+
+function extractFromLitbuy(urlStr) {
+  const url = tryParseUrl(urlStr);
+  if (!url) return null;
+
+  const host = normalizeHost(url.hostname);
+  const full = safeDecode(urlStr);
+
+  if (!host.includes("litbuy.com")) return null;
+
+  const match = full.match(/\/product\/(\d+)\/(\d+)/i);
+  if (!match) return null;
+
+  const platformCode = match[1];
+  const itemId = match[2];
+
+  if (platformCode === "1") return buildInfo("1688", itemId);
+  if (platformCode === "2") return buildInfo("taobao", itemId);
+  if (platformCode === "3") return buildInfo("weidian", itemId);
+
+  return buildInfo("1688", itemId);
 }
 
 function requestUrl(url, maxRedirects = 8) {
@@ -218,7 +238,7 @@ function requestUrl(url, maxRedirects = 8) {
           let body = "";
           res.setEncoding("utf8");
 
-          res.on("data", chunk => {
+          res.on("data", (chunk) => {
             body += chunk;
             if (body.length > 300000) {
               res.destroy();
@@ -245,6 +265,9 @@ function extractNestedMarketplace(text) {
   const acbuyInfo = extractFromAcbuy(decoded);
   if (acbuyInfo) return acbuyInfo;
 
+  const litbuyInfo = extractFromLitbuy(decoded);
+  if (litbuyInfo) return litbuyInfo;
+
   const urls = decoded.match(/https?:\/\/[^\s"'<>\\)]+/gi) || [];
 
   for (const candidate of urls) {
@@ -261,6 +284,11 @@ function extractNestedMarketplace(text) {
 
     if (host.includes("acbuy.com")) {
       const info = extractFromAcbuy(clean);
+      if (info) return info;
+    }
+
+    if (host.includes("litbuy.com")) {
+      const info = extractFromLitbuy(clean);
       if (info) return info;
     }
   }
@@ -281,30 +309,15 @@ function extractNestedMarketplace(text) {
   const p = platformMatch.toLowerCase();
 
   if (p.includes("1688") || p.includes("alibaba") || p === "al" || p === "ali") {
-    return {
-      marketplace: "1688",
-      itemId,
-      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
-      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
-    };
+    return buildInfo("1688", itemId);
   }
 
   if (p.includes("weidian") || p === "wd") {
-    return {
-      marketplace: "weidian",
-      itemId,
-      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
-    };
+    return buildInfo("weidian", itemId);
   }
 
   if (p.includes("taobao") || p.includes("tmall") || p === "tb") {
-    return {
-      marketplace: "taobao",
-      itemId,
-      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
-      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
-    };
+    return buildInfo("taobao", itemId);
   }
 
   return null;
@@ -319,6 +332,9 @@ async function convertAnyLinkToBbdbuy(inputUrl) {
 
   const acbuyInfo = extractFromAcbuy(inputUrl);
   if (acbuyInfo) return acbuyInfo;
+
+  const litbuyInfo = extractFromLitbuy(inputUrl);
+  if (litbuyInfo) return litbuyInfo;
 
   if (isShortLink(host)) {
     const resolved = await requestUrl(inputUrl);
@@ -343,6 +359,7 @@ async function convertAnyLinkToBbdbuy(inputUrl) {
     if (fromUrl) return fromUrl;
 
     const fetched = await requestUrl(workingUrl);
+
     const fromFinal = extractNestedMarketplace(fetched.finalUrl);
     if (fromFinal) return fromFinal;
 
