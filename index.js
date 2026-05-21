@@ -20,7 +20,7 @@ const client = new Client({
     ],
 });
 
-client.once("ready", () => {
+client.once("clientReady", () => {
     console.log(`✅ Bot listo como Links converter by S4l1sfinds_ro#3193`);
 });
 
