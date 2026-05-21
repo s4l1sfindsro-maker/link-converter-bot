@@ -74,6 +74,51 @@ function isAgentHost(host) {
   );
 }
 
+function extractFromAcbuy(urlStr) {
+  const url = tryParseUrl(urlStr);
+  if (!url) return null;
+
+  const host = normalizeHost(url.hostname);
+
+  if (!host.includes("acbuy.com")) return null;
+
+  const itemId = url.searchParams.get("id");
+  const source = url.searchParams.get("source");
+
+  if (!itemId || !source) return null;
+
+  const src = source.toUpperCase();
+
+  if (src === "AL" || src === "ALI" || src === "1688") {
+    return {
+      marketplace: "1688",
+      itemId,
+      originalUrl: `https://detail.1688.com/offer/${itemId}.html`,
+      bbdbuyUrl: buildBbdbuyUrl("1688", itemId),
+    };
+  }
+
+  if (src === "WD" || src === "WEIDIAN") {
+    return {
+      marketplace: "weidian",
+      itemId,
+      originalUrl: `https://weidian.com/item.html?itemID=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("weidian", itemId),
+    };
+  }
+
+  if (src === "TB" || src === "TAOBAO" || src === "TMALL") {
+    return {
+      marketplace: "taobao",
+      itemId,
+      originalUrl: `https://item.taobao.com/item.htm?id=${itemId}`,
+      bbdbuyUrl: buildBbdbuyUrl("taobao", itemId),
+    };
+  }
+
+  return null;
+}
+
 function normalizeMarketplaceUrl(urlStr) {
   const url = tryParseUrl(urlStr);
 
@@ -194,6 +239,10 @@ async function convertAnyLinkToBbdbuy(inputUrl) {
 
   let workingUrl = inputUrl;
   let host = normalizeHost(parsed.hostname);
+
+  const acbuyInfo = extractFromAcbuy(inputUrl);
+
+  if (acbuyInfo) return acbuyInfo;
 
   if (isShortMarketplaceHost(host)) {
     workingUrl = await resolveRedirect(inputUrl);
