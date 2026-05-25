@@ -59,11 +59,13 @@ client.on("messageCreate", async (message) => {
                         .setURL(result.originalUrl)
                         .setEmoji("🔗"),
 
-                    new ButtonBuilder()
-                        .setLabel("QC Finder")
-                        .setStyle(ButtonStyle.Link)
-                        .setURL(`https://finds.ly/product/${result.marketplace}/${result.itemId}`)
-                        .setEmoji("🔍")
+                   new ButtonBuilder()
+                  .setLabel("QC Finder")
+                  .setStyle(ButtonStyle.Link)
+                  .setURL(
+                    `https://www.uufinds.com/search?keyword=${encodeURIComponent(result.originalUrl)}`
+                  )
+                  .setEmoji("🔍")
                 );
 
                 await message.reply({
