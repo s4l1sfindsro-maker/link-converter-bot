@@ -59,11 +59,11 @@ client.on("messageCreate", async (message) => {
                         .setURL(result.originalUrl)
                         .setEmoji("🔗"),
 
-                   new ButtonBuilder()
+                  new ButtonBuilder()
                   .setLabel("QC Finder")
                   .setStyle(ButtonStyle.Link)
                   .setURL(
-                    `https://www.uufinds.com/search?keyword=${encodeURIComponent(result.originalUrl)}`
+                    `https://www.uufinds.com/imageSearchList?keyword=${encodeURIComponent(result.originalUrl)}`
                   )
                   .setEmoji("🔍")
                 );
