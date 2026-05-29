@@ -41,6 +41,13 @@ client.on("messageCreate", async (message) => {
 
                 if (!result) continue;
 
+                console.log("━━━━━━━━━━━━━━━━━━━━");
+                console.log("ORIGINAL:", url);
+                console.log("BBDBUY:", result.bbdbuyUrl);
+                console.log("MARKET:", result.marketplace);
+                console.log("ITEM:", result.itemId);
+                console.log("━━━━━━━━━━━━━━━━━━━━");
+
                 const embed = new EmbedBuilder()
                     .setColor("#ff9900")
                     .setDescription("👑 la de aici link, tati");
