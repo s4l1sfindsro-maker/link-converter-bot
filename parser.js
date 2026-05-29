@@ -189,11 +189,12 @@ function extractFromKnownAgent(urlStr) {
     const code = match[1];
     const itemId = match[2];
 
-    if (host.includes("vigorbuy.com") || host.includes("vigorbuy.cc")) {
+   if (host.includes("vigorbuy.com") || host.includes("vigorbuy.cc")) {
+      if (code === "0") return buildInfo("1688", itemId);
+      if (code === "1") return buildInfo("TAOBAO", itemId);
       if (code === "2") return buildInfo("WEIDIAN", itemId);
-      if (code === "1") return buildInfo("1688", itemId);
       if (code === "3") return buildInfo("TAOBAO", itemId);
-    }
+}
 
     if (host.includes("litbuy.com")) {
       if (code === "1") return buildInfo("1688", itemId);
