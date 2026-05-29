@@ -39,7 +39,7 @@ function normalizeHost(host) {
 function buildInfo(platform, itemId) {
   if (!platform || !itemId) return null;
 
-  const p = platform.toLowerCase();
+  const p = String(platform).toLowerCase();
 
   if (p.includes("weidian") || p === "wd" || p === "3") {
     return {
@@ -151,8 +151,6 @@ function extractFromKnownAgent(urlStr) {
   const marketInfo = normalizeMarketplaceUrl(full);
   if (marketInfo) return marketInfo;
 
-  // Kakobuy: /item/details?url=...
-  // Oopbuy: originKeywordUrl=...
   const possibleParams = [
     "url",
     "keyword",
@@ -183,26 +181,15 @@ function extractFromKnownAgent(urlStr) {
     if (marketFromParam) return marketFromParam;
   }
 
-  // Hipobuy / Litbuy / GTBuy / Oopbuy:
-  // /product/weidian/7614443390
-  // /product/1688/ID
-  // /product/taobao/ID
-  let match =
-    full.match(/\/product\/(weidian|1688|taobao|tmall|alibaba)\/(\d+)/i);
+  let match = full.match(/\/product\/(weidian|1688|taobao|tmall|alibaba)\/(\d+)/i);
+  if (match) return buildInfo(match[1], match[2]);
 
-  if (match) {
-    return buildInfo(match[1], match[2]);
-  }
-
-  // Vigorbuy:
-  // /product/2/7614443390
-  // En tu ejemplo, 2 = WEIDIAN
   match = full.match(/\/product\/(\d+)\/(\d+)/i);
   if (match) {
     const code = match[1];
     const itemId = match[2];
 
-    if (host.includes("vigorbuy.com")) {
+    if (host.includes("vigorbuy.com") || host.includes("vigorbuy.cc")) {
       if (code === "2") return buildInfo("WEIDIAN", itemId);
       if (code === "1") return buildInfo("1688", itemId);
       if (code === "3") return buildInfo("TAOBAO", itemId);
@@ -215,8 +202,6 @@ function extractFromKnownAgent(urlStr) {
     }
   }
 
-  // Rizzitgo:
-  // /detail-page/?goodsId=7614443390&source=3
   const goodsId =
     url.searchParams.get("goodsId") ||
     url.searchParams.get("goods_id") ||
@@ -228,7 +213,8 @@ function extractFromKnownAgent(urlStr) {
     url.searchParams.get("source") ||
     url.searchParams.get("platform") ||
     url.searchParams.get("shop_type") ||
-    url.searchParams.get("type");
+    url.searchParams.get("type") ||
+    url.searchParams.get("channel");
 
   if (goodsId && source) {
     const s = source.toLowerCase();
@@ -242,8 +228,6 @@ function extractFromKnownAgent(urlStr) {
     return buildInfo(source, goodsId);
   }
 
-  // Mulebuy:
-  // ?id=7614443390&platform=WEIDIAN
   const itemId =
     url.searchParams.get("id") ||
     url.searchParams.get("itemID") ||
@@ -254,11 +238,10 @@ function extractFromKnownAgent(urlStr) {
     url.searchParams.get("platform") ||
     url.searchParams.get("shop_type") ||
     url.searchParams.get("type") ||
+    url.searchParams.get("channel") ||
     "";
 
-  if (itemId && platform) {
-    return buildInfo(platform, itemId);
-  }
+  if (itemId && platform) return buildInfo(platform, itemId);
 
   return null;
 }
@@ -282,6 +265,7 @@ function isAgentHost(host) {
     "orientdig.com",
     "ezbuycn.com",
     "vigorbuy.com",
+    "vigorbuy.cc",
     "gtbuy.com",
     "rizzitgo.com",
     "rizitgo.com",
@@ -391,7 +375,11 @@ async function convertAnyLinkToBbdbuy(inputUrl) {
 
   if (direct) return direct;
 
-  if (isAgentHost(host) || host.includes("youshop10.com") || host.includes("m.tb.cn")) {
+  if (
+    isAgentHost(host) ||
+    host.includes("youshop10.com") ||
+    host.includes("m.tb.cn")
+  ) {
     const fetched = await requestUrl(inputUrl);
 
     const fromFinal = extractFromText(fetched.finalUrl);
